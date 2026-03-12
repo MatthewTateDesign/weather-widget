@@ -143,6 +143,12 @@
       line-height: 1.4;
     }
 
+    .day-precip {
+      font-size: 11px;
+      color: #93c5fd;
+      font-weight: 500;
+    }
+
     .footer {
       font-size: 11px;
       color: rgba(255,255,255,0.2);
@@ -235,7 +241,7 @@
           '?latitude=' + LAT +
           '&longitude=' + LON +
           '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m' +
-          '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
+          '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
           '&temperature_unit=fahrenheit' +
           '&wind_speed_unit=mph' +
           '&timezone=America%2FChicago' +
@@ -269,7 +275,8 @@
             '<div class="day-icon">' + icon + '</div>' +
             '<div class="day-hi">' + Math.round(daily.temperature_2m_max[i]) + '°</div>' +
             '<div class="day-lo">' + Math.round(daily.temperature_2m_min[i]) + '°</div>' +
-            '<div class="day-desc">' + desc + '</div>';
+            '<div class="day-desc">' + desc + '</div>' +
+            '<div class="day-precip">💧 ' + (daily.precipitation_probability_max[i] ?? 0) + '%</div>';
           grid.appendChild(card);
         }
 
