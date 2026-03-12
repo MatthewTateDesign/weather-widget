@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Abilene Weather</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: #111;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100%;
+      width: 100%;
+    }
+
+    #app {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      min-height: 100vh;
+    }
+
+    #loading {
+      color: rgba(255,255,255,0.4);
+      font-size: 15px;
+      text-align: center;
+      padding: 3rem 0;
+    }
+
+    #error {
+      color: #f87171;
+      font-size: 14px;
+      padding: 1rem;
+      background: rgba(248,113,113,0.1);
+      border-radius: 8px;
+      border: 1px solid rgba(248,113,113,0.25);
+      display: none;
+    }
+
+    #content {
+      display: none;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* Current conditions */
+    .current {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .temp-main {
+      font-size: 100px;
+      font-weight: 200;
+      line-height: 1;
+      letter-spacing: -5px;
+      color: #fff;
+    }
+
+    .condition {
+      font-size: 22px;
+      color: rgba(255,255,255,0.65);
+      margin-top: 0.4rem;
+      font-weight: 300;
+    }
+
+    .location-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+      margin-top: 0.5rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .current-right {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      align-items: flex-end;
+      padding-top: 0.5rem;
+    }
+
+    .hi-lo { font-size: 22px; }
+    .hi { color: #fbbf24; font-weight: 500; }
+    .lo { color: #93c5fd; font-weight: 500; }
+    .sep { color: rgba(255,255,255,0.25); margin: 0 4px; }
+
+    .meta-row {
+      font-size: 15px;
+      color: rgba(255,255,255,0.45);
+    }
+
+    .meta-row span {
+      color: rgba(255,255,255,0.85);
+      font-weight: 500;
+      margin-left: 6px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* 7-day forecast */
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+
+    .day-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 0.8rem 0.4rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .day-name {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: rgba(255,255,255,0.4);
+      font-weight: 500;
+    }
+
+    .day-icon { font-size: 26px; line-height: 1; }
+    .day-hi { font-size: 17px; font-weight: 500; color: #fbbf24; }
+    .day-lo { font-size: 13px; color: #93c5fd; }
+
+    .day-desc {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      line-height: 1.4;
+    }
+
+    .footer {
+      font-size: 11px;
+      color: rgba(255,255,255,0.2);
+      text-align: right;
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="loading">Fetching weather...</div>
+    <div id="error"></div>
+    <div id="content">
+      <div class="current">
+        <div>
+          <div class="temp-main" id="temp">--</div>
+          <div class="condition" id="condition">--</div>
+          <div class="location-label">Abilene, TX</div>
+        </div>
+        <div class="current-right">
+          <div class="hi-lo">
+            <span class="hi" id="hi">--</span>
+            <span class="sep">/</span>
+            <span class="lo" id="lo">--</span>
+          </div>
+          <div class="meta-row">Feels like<span id="feels">--</span></div>
+          <div class="meta-row">Wind<span id="wind">--</span></div>
+          <div class="meta-row">Humidity<span id="humidity">--</span></div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="forecast-grid" id="forecast"></div>
+
+      <div class="footer" id="updated"></div>
+    </div>
+  </div>
+
+  <script>
+    const LAT = 32.4487;
+    const LON = -99.7331;
+
+    const WMO = {
+      0:  ['Clear sky',            '☀️'],
+      1:  ['Mainly clear',         '🌤️'],
+      2:  ['Partly cloudy',        '⛅'],
+      3:  ['Overcast',             '☁️'],
+      45: ['Foggy',                '🌫️'],
+      48: ['Icy fog',              '🌫️'],
+      51: ['Light drizzle',        '🌦️'],
+      53: ['Drizzle',              '🌦️'],
+      55: ['Heavy drizzle',        '🌧️'],
+      61: ['Light rain',           '🌧️'],
+      63: ['Rain',                 '🌧️'],
+      65: ['Heavy rain',           '🌧️'],
+      71: ['Light snow',           '🌨️'],
+      73: ['Snow',                 '❄️'],
+      75: ['Heavy snow',           '❄️'],
+      77: ['Snow grains',          '🌨️'],
+      80: ['Light showers',        '🌦️'],
+      81: ['Showers',              '🌧️'],
+      82: ['Heavy showers',        '⛈️'],
+      85: ['Snow showers',         '🌨️'],
+      86: ['Heavy snow showers',   '❄️'],
+      95: ['Thunderstorm',         '⛈️'],
+      96: ['Thunderstorm w/ hail', '⛈️'],
+      99: ['Thunderstorm w/ hail', '⛈️'],
+    };
+
+    function wmo(code) {
+      return WMO[code] || ['Unknown', '🌡️'];
+    }
+
+    function dayLabel(dateStr, i) {
+      if (i === 0) return 'Today';
+      const d = new Date(dateStr + 'T12:00:00');
+      return d.toLocaleDateString('en-US', { weekday: 'short' });
+    }
+
+    function windDir(deg) {
+      const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+      return dirs[Math.round(deg / 45) % 8];
+    }
+
+    async function load() {
+      try {
+        const url =
+          'https://api.open-meteo.com/v1/forecast' +
+          '?latitude=' + LAT +
+          '&longitude=' + LON +
+          '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m' +
+          '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
+          '&temperature_unit=fahrenheit' +
+          '&wind_speed_unit=mph' +
+          '&timezone=America%2FChicago' +
+          '&forecast_days=7';
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('API returned ' + res.status);
+        const d = await res.json();
+
+        const cur = d.current;
+        const daily = d.daily;
+
+        const [condText] = wmo(cur.weather_code);
+
+        document.getElementById('temp').textContent      = Math.round(cur.temperature_2m) + '°';
+        document.getElementById('condition').textContent = condText;
+        document.getElementById('feels').textContent     = Math.round(cur.apparent_temperature) + '°F';
+        document.getElementById('wind').textContent      = Math.round(cur.wind_speed_10m) + ' mph ' + windDir(cur.wind_direction_10m);
+        document.getElementById('humidity').textContent  = Math.round(cur.relative_humidity_2m) + '%';
+        document.getElementById('hi').textContent        = Math.round(daily.temperature_2m_max[0]) + '°';
+        document.getElementById('lo').textContent        = Math.round(daily.temperature_2m_min[0]) + '°';
+
+        const grid = document.getElementById('forecast');
+        grid.innerHTML = '';
+        for (let i = 0; i < 7; i++) {
+          const [desc, icon] = wmo(daily.weather_code[i]);
+          const card = document.createElement('div');
+          card.className = 'day-card';
+          card.innerHTML =
+            '<div class="day-name">' + dayLabel(daily.time[i], i) + '</div>' +
+            '<div class="day-icon">' + icon + '</div>' +
+            '<div class="day-hi">' + Math.round(daily.temperature_2m_max[i]) + '°</div>' +
+            '<div class="day-lo">' + Math.round(daily.temperature_2m_min[i]) + '°</div>' +
+            '<div class="day-desc">' + desc + '</div>';
+          grid.appendChild(card);
+        }
+
+        document.getElementById('updated').textContent =
+          'Updated ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'flex';
+      } catch (e) {
+        document.getElementById('loading').style.display = 'none';
+        const el = document.getElementById('error');
+        el.style.display = 'block';
+        el.textContent = 'Weather unavailable: ' + e.message;
+      }
+    }
+
+    load();
+    setInterval(load, 10 * 60 * 1000);
+  </script>
+</body>
+</html>
